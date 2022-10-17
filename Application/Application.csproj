@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\miilvFace\miilvFace.csproj" />
+    <PackageReference Include="miilv.ArcFace.Async" Version="1.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -9,6 +9,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RestoreSources>$(RestoreSources);../miilvFace/bin/Debug</RestoreSources>
   </PropertyGroup>
 
 </Project>

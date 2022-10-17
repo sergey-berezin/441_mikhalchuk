@@ -11,7 +11,7 @@ namespace appFace{
     public class miilvFace
     {
         private InferenceSession session; 
-        private CancellationTokenSource cts;
+        static Semaphore semaphore = new Semaphore(1, 1);
         float Length(float[] v) => (float)Math.Sqrt(v.Select(x => x*x).Sum());
         float[] Normalize(float[] v) 
         {
@@ -58,7 +58,7 @@ namespace appFace{
             return Tuple.Create(Distance(embeddings1, embeddings2), Similarity(embeddings1, embeddings2));
         }
 
-        public async Task<Tuple<float, float>> CompareAsync(Tuple<byte[], byte[]> img){
+        public async Task<Tuple<float, float>> CompareAsync(Tuple<byte[], byte[]> img, CancellationTokenSource cts){
             var task0 = Task.Run(async () => 
             {
                 var stream1 = new MemoryStream(img.Item1);
@@ -86,15 +86,23 @@ namespace appFace{
             return Tuple.Create(Distance(embeddings1, embeddings2), Similarity(embeddings1, embeddings2));
         }
 
-         private float[] GetEmbeddingsAsync(Image<Rgb24> face) 
+         async private Task<float[]> GetEmbeddingsAsync(Image<Rgb24> face) 
         {
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("data", ImageToTensor(face)) };
-            using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
-            return Normalize(results.First(v => v.Name == "fc1").AsEnumerable<float>().ToArray());
+           var output = new float[0];
+            await Task.Factory.StartNew(() =>
+            {
+                semaphore.WaitOne();   
+                using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+                semaphore.Release();
+                output = Normalize(results.First(v => v.Name == "fc1").AsEnumerable<float>().ToArray());
+            }, TaskCreationOptions.LongRunning);
+            //using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+            return output;
         }
         public miilvFace(){
             session = new InferenceSession("miilvFace/arcfaceresnet100-8.onnx");
-            cts = new CancellationTokenSource();
+            //cts = new CancellationTokenSource();
         }
     }
 }

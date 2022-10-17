@@ -13,7 +13,8 @@ class Program{
         var mlnet = new miilvFace();
         //var result = mlnet.Compare(pair);
         Console.WriteLine("Sending Images to model.");
-        var compareson = Task.Run(async () => await mlnet.CompareAsync(pair));
+        CancellationTokenSource cts = new CancellationTokenSource();
+        var compareson = Task.Run(async () => await mlnet.CompareAsync(pair, cts));
         Console.Write("Working -");
         while (!compareson.IsCompleted){
             await Task.Delay(1);
