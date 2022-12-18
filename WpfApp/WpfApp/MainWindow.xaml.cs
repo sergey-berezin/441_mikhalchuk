@@ -31,6 +31,7 @@ namespace WpfApp
         //private ObservableCollection<ProcessedImage> ProcessedImages_2 = new ObservableCollection<ProcessedImage>();
         private List<List<Tuple<float, float>>> Calculations = new List<List<Tuple<float, float>>>();
         bool Canceled = false;
+        bool CalculationInProgress = false;
         CancellationTokenSource cts;
         
         public MainWindow()
@@ -123,9 +124,10 @@ namespace WpfApp
             {
                 MessageBox.Show("No images in List 2 selected yet!");
             }
-            else
+            else if (!CalculationInProgress)
             {
                 ProgressBar.Visibility = Visibility.Visible;
+                CalculationInProgress = true;
                 try
                 {
                     miilvFace mlnet = new miilvFace();
@@ -142,12 +144,14 @@ namespace WpfApp
                         Calculations.Add(line);
                         
                     }
+                    CalculationInProgress = false;
                     MessageBox.Show("Completed!");
                 }
                 catch (TaskCanceledException)
                 {
 
                     MessageBox.Show("Task was cancelled!");
+                    CalculationInProgress = false;
                 }
             }
 
@@ -158,7 +162,7 @@ namespace WpfApp
             {
                 cts.Cancel();
                 ProgressBar.Value = 0;
-
+                CalculationInProgress = false;
                 ProgressBar.Visibility = Visibility.Hidden;
                 Canceled = true;
             }
