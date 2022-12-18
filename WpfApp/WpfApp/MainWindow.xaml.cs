@@ -22,8 +22,8 @@ using System.Windows.Shapes;
 
 namespace WpfApp
 {
-    
-    
+
+
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private Tuple<ObservableCollection<Image>, ObservableCollection<Image>> ImagePathsList = Tuple.Create(new ObservableCollection<Image>(), new ObservableCollection<Image>());
@@ -33,7 +33,7 @@ namespace WpfApp
         bool Canceled = false;
         bool CalculationInProgress = false;
         CancellationTokenSource cts;
-        
+
         public MainWindow()
         {
             InitializeComponent();
@@ -84,7 +84,7 @@ namespace WpfApp
             }
             catch (Exception ex)
             {
-                
+
                 cts = new CancellationTokenSource();
                 MessageBox.Show(ex.Message);
             }
@@ -100,7 +100,7 @@ namespace WpfApp
         }
         private async Task<Tuple<float, float>> Calculate(Image image1, Image image2, miilvFace mlnet, CancellationTokenSource cts)
         {
-    
+
             var compareson = await Task.Run(async () =>
             {
                 var pic1 = await File.ReadAllBytesAsync(image1.Path, cts.Token);
@@ -142,7 +142,7 @@ namespace WpfApp
                             ProgressBar.Value++;
                         }
                         Calculations.Add(line);
-                        
+
                     }
                     CalculationInProgress = false;
                     MessageBox.Show("Completed!");
@@ -185,7 +185,7 @@ namespace WpfApp
                 Similarity.Text = Calculations[index_1][index_2].Item2.ToString();
                 Distance.Text = Calculations[index_1][index_2].Item1.ToString();
             }
-           
+
         }
     }
 }
