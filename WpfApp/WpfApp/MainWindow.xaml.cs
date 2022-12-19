@@ -84,8 +84,6 @@ namespace WpfApp
             }
             catch (Exception ex)
             {
-
-                cts = new CancellationTokenSource();
                 MessageBox.Show(ex.Message);
             }
         }
