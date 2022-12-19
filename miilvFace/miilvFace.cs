@@ -101,7 +101,12 @@ namespace appFace{
             return output;
         }
         public miilvFace(){
-            session = new InferenceSession("miilvFace/arcfaceresnet100-8.onnx");
+            using var modelStream = typeof(miilvFace).Assembly.GetManifestResourceStream("arcface.onnx");
+            using var memoryStream = new MemoryStream();
+            if (modelStream != null)
+                modelStream.CopyTo(memoryStream);
+            session = new InferenceSession(memoryStream.ToArray());
+            //session = new InferenceSession("miilvFace/arcfaceresnet100-8.onnx");
             //cts = new CancellationTokenSource();
         }
     }
