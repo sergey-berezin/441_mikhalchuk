@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>miilv.ArcFace.Async</PackageId>
-    <Version>1.0.2</Version>  
+    <Version>1.0.3</Version>  
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
