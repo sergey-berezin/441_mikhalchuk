@@ -1,5 +1,6 @@
 ﻿using appFace;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -29,20 +30,24 @@ namespace WpfApp
         private Tuple<ObservableCollection<Image>, ObservableCollection<Image>> ImagePathsList = Tuple.Create(new ObservableCollection<Image>(), new ObservableCollection<Image>());
         //private ObservableCollection<ProcessedImage> ProcessedImages_1 = new ObservableCollection<ProcessedImage>();
         //private ObservableCollection<ProcessedImage> ProcessedImages_2 = new ObservableCollection<ProcessedImage>();
-        private List<List<Tuple<float, float>>> Calculations = new List<List<Tuple<float, float>>>();
+        //private List<List<Tuple<float, float>>> Calculations = new List<List<Tuple<float, float>>>();
         bool Canceled = false;
         bool CalculationInProgress = false;
         CancellationTokenSource cts;
+        miilvFace mlnet;
+
 
         public MainWindow()
         {
             InitializeComponent();
+            Load();
             this.DataContext = this;
             ImagePathsList_1.ItemsSource = ImagePathsList.Item1;
             ImagePathsList_2.ItemsSource = ImagePathsList.Item2;
             ImagePathsList_1.SelectionChanged += ImagePathsList_SelectionChanged;
             ImagePathsList_2.SelectionChanged += ImagePathsList_SelectionChanged;
             ProgressBar.Visibility = Visibility.Hidden;
+            mlnet = new miilvFace();
         }
         //дальше наполняем функцию ввода изобр, потом обработки
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -54,28 +59,27 @@ namespace WpfApp
                 Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
                 openFileDialog.Multiselect = true;
                 openFileDialog.Filter = "All Image Files|*.bmp;*.ico;*.gif;*.jpeg;*.jpg;*.png;*.tif;*.tiff;*";
-                if (ImagePathsList.Item1.Count != 0 && ImagePathsList.Item2.Count != 0)
-                {
-                    ImagePathsList = Tuple.Create(new ObservableCollection<Image>(), new ObservableCollection<Image>());
-                    Calculations = new List<List<Tuple<float, float>>>();
-                }
+                
                 if ((bool)openFileDialog.ShowDialog())
                 {
                     string[] ImageList_open = openFileDialog.FileNames;
-                    if (!id)
+                    using (var db = new DataContext())
                     {
-                        foreach (string image in ImageList_open)
+                        if (!id)
                         {
-                            //ProcessedImages_1.Add(new ProcessedImage(image));
-                            ImagePathsList.Item1.Add(new Image(image));
+                            foreach (string image in ImageList_open)
+                            {
+                                //ProcessedImages_1.Add(new ProcessedImage(image));
+                                ImagePathsList.Item1.Add(new Image(image, id));
+                            }
                         }
-                    }
-                    else
-                    {
-                        foreach (string image in ImageList_open)
+                        else
                         {
-                            //ProcessedImages_2.Add(new ProcessedImage(image));
-                            ImagePathsList.Item2.Add(new Image(image));
+                            foreach (string image in ImageList_open)
+                            {
+                                //ProcessedImages_2.Add(new ProcessedImage(image));
+                                ImagePathsList.Item2.Add(new Image(image, id));
+                            }
                         }
                     }
 
@@ -88,6 +92,29 @@ namespace WpfApp
             }
         }
 
+        public void Load()
+        {
+            using (var db = new DataContext())
+            {
+                if (db.Images.Any())
+                {
+                    foreach (var item in db.Images)
+                    {
+                        if (item.Embedding != null)
+                        {
+                            if (!item.Position)
+                            {
+                                ImagePathsList.Item1.Add(item);
+                            }
+                            else
+                            {
+                                ImagePathsList.Item2.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         private void LoadImages_Button_Click_1(object sender, RoutedEventArgs? e = null)
         {
             LoadImages(sender, false, e);
@@ -96,7 +123,8 @@ namespace WpfApp
         {
             LoadImages(sender, true, e);
         }
-        private async Task<Tuple<float, float>> Calculate(Image image1, Image image2, miilvFace mlnet, CancellationTokenSource cts)
+        /*
+         * private async Task<Tuple<float, float>> Calculate(Image image1, Image image2, miilvFace mlnet, CancellationTokenSource cts)
         {
 
             var compareson = await Task.Run(async () =>
@@ -109,6 +137,7 @@ namespace WpfApp
             }, cts.Token);
             return compareson;
         }
+        
         private async void ProcessImages_Button_Click(object sender, RoutedEventArgs? e = null)
         {
             Canceled = false;
@@ -154,6 +183,53 @@ namespace WpfApp
             }
 
         }
+        */
+        private async void ProcessImages_Button_Click(object sender, RoutedEventArgs? e = null)
+        {
+            Canceled = false;
+            cts = new CancellationTokenSource();
+            //mlnet = new miilvFace();
+            if (ImagePathsList.Item1.Count == 0)
+            {
+                MessageBox.Show("No images in List 1 selected yet!");
+            }
+            else if (ImagePathsList.Item2.Count == 0)
+            {
+                MessageBox.Show("No images in List 2 selected yet!");
+            }
+            else if (!CalculationInProgress)
+            {
+                ProgressBar.Visibility = Visibility.Visible;
+                CalculationInProgress = true;
+                try
+                {
+                    //miilvFace mlnet = new miilvFace();
+                    using (var db = new DataContext())
+                    {
+                        ProgressBar.Maximum = ImagePathsList.Item1.Count + ImagePathsList.Item2.Count;
+                        for (int i = 0; i < ImagePathsList.Item1.Count; i++)
+                        {
+                            await ImagePathsList.Item1[i].Calculate(db, mlnet, cts);
+                            ProgressBar.Value++;
+                        }
+                        for (int j = 0; j < ImagePathsList.Item2.Count; j++)
+                        {
+                            await ImagePathsList.Item2[j].Calculate(db, mlnet, cts);
+                            ProgressBar.Value++;
+                        }
+                        CalculationInProgress = false;
+                        MessageBox.Show("Completed!");
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+
+                    MessageBox.Show("Task was cancelled!");
+                    CalculationInProgress = false;
+                }
+            }
+
+        }
         private async void Cancel_Button_Click(object sender, RoutedEventArgs e)
         {
             if (!Canceled)
@@ -180,8 +256,15 @@ namespace WpfApp
             int index_2 = ImagePathsList_2.SelectedIndex;
             if (index_1 != -1 && index_2 != -1)
             {
-                Similarity.Text = Calculations[index_1][index_2].Item2.ToString();
-                Distance.Text = Calculations[index_1][index_2].Item1.ToString();
+                var Calculations_1 = new float[ImagePathsList.Item1[index_1].Embedding.Length / 4];
+                Buffer.BlockCopy(ImagePathsList.Item1[index_1].Embedding, 0, Calculations_1, 0, ImagePathsList.Item1[index_1].Embedding.Length);
+                var Calculations_2 = new float[ImagePathsList.Item2[index_2].Embedding.Length / 4];
+                Buffer.BlockCopy(ImagePathsList.Item2[index_2].Embedding, 0, Calculations_2, 0, ImagePathsList.Item2[index_2].Embedding.Length);
+
+
+                var compareson = Task.Run(async () => await mlnet.CompareFromPrecalculatedAsync(Calculations_1, Calculations_2));
+                Similarity.Text = compareson.Result.Item2.ToString();
+                Distance.Text = compareson.Result.Item1.ToString();
             }
 
         }

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="miilv.ArcFace.Async" Version="1.0.0" />
+    <PackageReference Include="miilv.ArcFace.Async" Version="1.0.3" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -41,11 +41,11 @@ namespace appFace{
             return t;
         }
         
-        float[] GetEmbeddings(Image<Rgb24> face) 
+        byte[] GetEmbeddings(Image<Rgb24> face) 
         {
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("data", ImageToTensor(face)) };
             using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
-            return Normalize(results.First(v => v.Name == "fc1").AsEnumerable<float>().ToArray());
+            return Normalize(results.First(v => v.Name == "fc1").AsEnumerable<byte>().ToArray());
         }
         float Distance(float[] v1, float[] v2) => Length(v1.Zip(v2).Select(p => p.First - p.Second).ToArray());
 
@@ -85,11 +85,13 @@ namespace appFace{
             }
             return Tuple.Create(Distance(embeddings1, embeddings2), Similarity(embeddings1, embeddings2));
         }
-
-         async private Task<float[]> GetEmbeddingsAsync(Image<Rgb24> face) 
+        public async Task<Tuple<float, float>> CompareFromPrecalculatedAsync(float[] embeddings1, float[] embeddings2){
+            return Tuple.Create(Distance(embeddings1, embeddings2), Similarity(embeddings1, embeddings2));
+        }
+        async Task<float[]> GetEmbeddingsAsync(Image<Rgb24> face) 
         {
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("data", ImageToTensor(face)) };
-           var output = new float[0];
+            var output = new byte[0];
             await Task.Factory.StartNew(() =>
             {
                 semaphore.WaitOne();   
@@ -99,6 +101,24 @@ namespace appFace{
             }, TaskCreationOptions.LongRunning);
             //using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
             return output;
+        }
+        public async Task<byte[]> GetEmbeddingsFromBytesAsync(byte[] imgBytes,  CancellationTokenSource cts){
+            var task = Task.Run(async () => 
+            {
+                var stream1 = new MemoryStream(imgBytes);
+                return await Image.LoadAsync<Rgb24>(stream1, cts.Token);
+            });
+            await task;
+            if(cts.Token.IsCancellationRequested){
+                //var empt = new float[];
+                return new float[]{ };
+            }
+            Image<Rgb24> face = task.Result;
+            float[] embeddings = await Task.Run(() => GetEmbeddings(face), cts.Token);
+            if(cts.Token.IsCancellationRequested){
+                return new float[]{ };
+            }
+            return embeddings;
         }
         public miilvFace(){
             using var modelStream = typeof(miilvFace).Assembly.GetManifestResourceStream("arcface.onnx");
